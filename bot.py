@@ -4,13 +4,13 @@ import random
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-# 1. Setup Logging
+# 1. Setup Logging so you can see what's happening in Render
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# 2. Friendly Bot Logic
+# 2. Friendly Conversation Starters
 FRIENDLY_QUESTIONS = [
     "How has your day been so far? 😊",
     "What's something good that happened to you today?",
@@ -20,6 +20,7 @@ FRIENDLY_QUESTIONS = [
 ]
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Triggered when /start is typed."""
     user_name = update.effective_user.first_name
     welcome_text = (
         f"Hi {user_name}! 👋 Welcome to Friendly Chat.\n\n"
@@ -29,6 +30,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(welcome_text)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handles incoming text messages, replies politely, and asks a follow-up question."""
     user_text = update.message.text.lower()
     
     if any(word in user_text for word in ["hello", "hi", "hey"]):
@@ -43,21 +45,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     follow_up = random.choice(FRIENDLY_QUESTIONS)
     await update.message.reply_text(f"{reply}{follow_up}")
 
-# 3. Main Application Execution
 def main():
+    # Grab token securely from Render's dashboard environment variables
     TOKEN = os.environ.get("TELEGRAM_TOKEN")
     if not TOKEN:
         logger.error("No TELEGRAM_TOKEN found in environment variables!")
         return
 
-    # Build and run the application purely on polling
+    # Build the application
     application = Application.builder().token(TOKEN).build()
 
+    # Register handlers
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
+    # Start the bot and drop stuck/backlogged messages from when it was offline
     logger.info("Starting Telegram Bot as a Background Worker...")
-    application.run_polling()
+    application.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':
     main()
